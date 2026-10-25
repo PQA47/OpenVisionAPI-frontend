@@ -1,0 +1,25 @@
+# Android
+.gradle/
+**/build/
+*.iml
+.idea/
+.externalNativeBuild/
+.cxx/
+*.apk
+*.aab
+*.jks
+*.keystore
+
+# Editor and system files
+.vscode/*
+!.vscode/extensions.json
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Logs and temporary files
+*.log
+*.local
