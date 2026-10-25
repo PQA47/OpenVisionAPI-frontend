@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">OpenVisionAPI</string>
+    <string name="title_activity_main">OpenVisionAPI</string>
+    <string name="app_brand">OpenVisionAPI</string>
+    <string name="hero_badge">COMPUTER VISION, SIMPLIFIED</string>
+    <string name="hero_title">Give your images\na new perspective.</string>
+    <string name="hero_description">Explore the power of computer vision with OpenVisionAPI. Turn visual information into insights through an intuitive, developer-friendly experience.</string>
+    <string name="choose_image">Choose an image</string>
+    <string name="hero_note">Built for curious minds and AI developers</string>
+    <string name="features_kicker">WHAT YOU CAN EXPLORE</string>
+    <string name="features_title">Vision meets intelligence.</string>
+    <string name="features_description">Discover the building blocks of a smarter visual experience.</string>
+    <string name="feature_recognition_title">Image Recognition</string>
+    <string name="feature_recognition_description">Identify objects and understand the visual content of an image.</string>
+    <string name="feature_analysis_title">AI-Powered Analysis</string>
+    <string name="feature_analysis_description">Turn image data into meaningful information through computer vision.</string>
+    <string name="feature_developer_title">Developer Friendly</string>
+    <string name="feature_developer_description">A simple interface designed to make vision tools easier to explore.</string>
+    <string name="workflow_kicker">A SIMPLE WORKFLOW</string>
+    <string name="workflow_title">From image to insight.</string>
+    <string name="workflow_description">Choose an image, connect a vision endpoint, and explore the results.</string>
+    <string name="step_choose_title">Choose an image</string>
+    <string name="step_choose_description">Start with a picture from your device.</string>
+    <string name="step_analyze_title">Analyze the content</string>
+    <string name="step_analyze_description">Send the image to your configured vision API.</string>
+    <string name="step_results_title">Explore the results</string>
+    <string name="step_results_description">Review the analysis in a clear, simple workspace.</string>
+    <string name="workspace_kicker">YOUR VISUAL WORKSPACE</string>
+    <string name="workspace_title">Start with an image.</string>
+    <string name="workspace_description">Select a picture to preview it. Live AI analysis will be available when a backend endpoint is connected.</string>
+    <string name="image_placeholder">Your selected image preview will appear here.</string>
+    <string name="image_upload_hint">PNG, JPG, or WEBP. Maximum file size: 10 MB.</string>
+    <string name="image_invalid_type">Choose a PNG, JPG, or WEBP image.</string>
+    <string name="image_loading">Loading image preview…</string>
+    <string name="image_ready">Image ready to preview. AI analysis is not connected yet.</string>
+    <string name="image_too_large">Choose an image smaller than 10 MB.</string>
+    <string name="image_read_error">We could not open that image. Please try another one.</string>
+    <string name="reset_image">Reset</string>
+    <string name="about_button">About</string>
+    <string name="closing_title">Make visual AI more approachable.</string>
+    <string name="closing_description">A clean starting point for exploring computer vision and building useful AI-powered applications.</string>
+</resources>

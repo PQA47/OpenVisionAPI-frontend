@@ -1,29 +1,34 @@
-# OpenVisionAPI Frontend
+# OpenVisionAPI Android App
 
-A React + Vite landing page starter with reusable UI components and a dark navy/purple/blue theme.
+OpenVisionAPI is a native Android application built with Java and Android views.
 
 ## Requirements
-- Node.js (LTS recommended)
-- npm
 
-## Run locally
+- Android Studio
+- Android SDK Platform 36
+- JDK 17 (Android Studio's bundled JDK is recommended)
+
+## Open and run
+
+1. In Android Studio, choose **Open** and select this project's `android` folder.
+2. Allow Gradle to sync and install any prompted Android SDK components.
+3. Choose an Android emulator or connected device and run the `app` configuration.
+
+Alternatively, from PowerShell:
+
 ```powershell
-npm install
-npm run dev
+Set-Location 'C:\path\to\OpenVisionAPI-frontend\android'
+.\gradlew.bat assembleDebug
 ```
 
-If PowerShell blocks `npm.ps1`, use `npm.cmd install` and `npm.cmd run dev`.
+The debug APK is generated at `android/app/build/outputs/apk/debug/app-debug.apk`.
 
-## Production build
-```powershell
-npm run build
-```
+## Image preview
 
-## Structure
-- `src/components/Button.jsx` — reusable button
-- `src/components/Navbar.jsx` — responsive navigation
-- `src/components/FeatureCard.jsx` — reusable feature card
-- `src/pages/LandingPage.jsx` — landing page sections and image preview
-- `src/index.css` — global styles and responsive theme
+The native image picker accepts PNG, JPG, and WEBP images up to 10 MB. Selected images are previewed locally and are not uploaded. AI analysis is not connected; a backend endpoint and request/response contract are needed before it can be implemented.
 
-The image upload currently provides a local preview only. It does not call an AI endpoint. Connect it to the team's backend once the endpoint and request/response contract are known.
+## Android project
+
+- `android/app/src/main/java/com/openvisionapi/app/MainActivity.java` — native app screen and image picker
+- `android/app/src/main/res/layout/activity_main.xml` — Android screen layout
+- `android/app/src/main/res/values/` — app theme, colors, and text
