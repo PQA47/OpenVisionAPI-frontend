@@ -23,4 +23,31 @@ public class NativeAppInstrumentedTest {
 
         assertEquals("com.openvisionapi.app", appContext.getPackageName());
     }
+
+    @Test
+    public void mockSuccessResponseParsesLabelsAndConfidence() throws Exception {
+        ApiResponseParser parsed = ApiResponseParser.parse(
+                MockApiResponses.responseFor(MockApiResponses.SUCCESS));
+
+        assertTrue(parsed.hasUsefulResults);
+        assertEquals(2, parsed.labels.size());
+        assertEquals("Bicycle", parsed.labels.get(0).name);
+        assertEquals("97.0% confidence", parsed.labels.get(0).confidence);
+    }
+
+    @Test
+    public void mockEmptyResponseParsesAsNoResults() throws Exception {
+        ApiResponseParser parsed = ApiResponseParser.parse(
+                MockApiResponses.responseFor(MockApiResponses.EMPTY));
+
+        assertFalse(parsed.hasUsefulResults);
+        assertTrue(parsed.labels.isEmpty());
+        assertTrue(parsed.textLines.isEmpty());
+    }
+
+    @Test
+    public void mockErrorScenarioIsExplicitlyMarked() {
+        assertTrue(MockApiResponses.errorMessage().contains("MOCK/DEMO"));
+        assertTrue(MockApiResponses.errorMessage().contains("No API request was sent"));
+    }
 }

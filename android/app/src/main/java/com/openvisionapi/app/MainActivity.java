@@ -4,6 +4,8 @@ import android.content.ContentResolver;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
+import android.graphics.Canvas;
+import android.graphics.Paint;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
@@ -15,10 +17,14 @@ import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.ArrayAdapter;
+import android.widget.CheckBox;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
+import android.widget.ProgressBar;
+import android.widget.Spinner;
 import android.widget.TextView;
 
 import androidx.activity.result.ActivityResultLauncher;
@@ -35,9 +41,7 @@ import java.io.InputStream;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import org.json.JSONArray;
 import org.json.JSONException;
-import org.json.JSONObject;
 
 public class MainActivity extends AppCompatActivity {
     private static final int MAX_IMAGE_BYTES = (int) ImageFileValidator.MAX_IMAGE_BYTES;
@@ -58,6 +62,12 @@ public class MainActivity extends AppCompatActivity {
     private TextView imageStatus;
     private TextView imageFileInfo;
     private Button submitButton;
+    private LinearLayout resultContainer;
+    private Button retryButton;
+    private ProgressBar loadingIndicator;
+    private DetectionOverlay detectionOverlay;
+    private CheckBox mockModeToggle;
+    private Spinner mockScenarioSpinner;
     private byte[] selectedImageBytes;
     private Uri selectedImageUri;
     private String selectedImageName;
@@ -182,10 +192,14 @@ public class MainActivity extends AppCompatActivity {
         imagePreview.setScaleType(ImageView.ScaleType.FIT_CENTER);
         imagePreview.setAdjustViewBounds(true);
         imagePreview.setVisibility(View.GONE);
+        detectionOverlay = new DetectionOverlay();
+        detectionOverlay.setVisibility(View.GONE);
         previewFrame.addView(imagePreview, new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT
         ));
+        previewFrame.addView(detectionOverlay, new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
 
         imagePlaceholder = text(getString(R.string.image_placeholder), 14, COLOR_MUTED, false);
         imagePlaceholder.setGravity(Gravity.CENTER);
@@ -218,11 +232,42 @@ public class MainActivity extends AppCompatActivity {
         resetParams.leftMargin = dp(10);
         buttons.addView(resetButton, resetParams);
         uploadCard.addView(buttons);
+
+        mockModeToggle = new CheckBox(this);
+        mockModeToggle.setText("Use MOCK/DEMO mode (no real API request)");
+        mockModeToggle.setTextColor(COLOR_TEXT);
+        uploadCard.addView(mockModeToggle, margin(0, 12, 0, 0));
+        mockScenarioSpinner = new Spinner(this);
+        ArrayAdapter<String> scenarios = new ArrayAdapter<>(this,
+                android.R.layout.simple_spinner_item,
+                new String[]{"Success — sample labels", "Empty — no results", "Error — simulated failure"});
+        scenarios.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        mockScenarioSpinner.setAdapter(scenarios);
+        mockScenarioSpinner.setVisibility(View.GONE);
+        uploadCard.addView(mockScenarioSpinner, margin(0, 0, 0, 4));
+        mockModeToggle.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            mockScenarioSpinner.setVisibility(isChecked ? View.VISIBLE : View.GONE);
+            if (isChecked) imageStatus.setText("MOCK/DEMO mode enabled. No API request will be sent.");
+            else if (!processing) imageStatus.setText(R.string.image_ready);
+        });
+
         submitButton = primaryButton("Process image");
         submitButton.setEnabled(false);
         submitButton.setAlpha(0.55f);
         submitButton.setOnClickListener(view -> submitSelectedImage());
         uploadCard.addView(submitButton, margin(0, 12, 0, 0));
+
+        loadingIndicator = new ProgressBar(this);
+        loadingIndicator.setVisibility(View.GONE);
+        uploadCard.addView(loadingIndicator, margin(0, 12, 0, 0));
+        resultContainer = new LinearLayout(this);
+        resultContainer.setOrientation(LinearLayout.VERTICAL);
+        resultContainer.setVisibility(View.GONE);
+        uploadCard.addView(resultContainer, margin(0, 12, 0, 0));
+        retryButton = secondaryButton("Try again");
+        retryButton.setVisibility(View.GONE);
+        retryButton.setOnClickListener(view -> submitSelectedImage());
+        uploadCard.addView(retryButton, margin(0, 10, 0, 0));
     }
 
     private void buildClosingSection() {
@@ -321,6 +366,8 @@ public class MainActivity extends AppCompatActivity {
         String mimeType = resolver.getType(uri);
         if (!ImageFileValidator.isSupportedMimeType(mimeType)) {
             imageLoadGeneration++;
+            processing = false;
+            clearResult();
             imagePreview.setImageDrawable(null);
             selectedImageBytes = null;
             selectedImageUri = null;
@@ -333,6 +380,9 @@ public class MainActivity extends AppCompatActivity {
         }
 
         long generation = ++imageLoadGeneration;
+        clearResult();
+        processing = false;
+        updateSubmitButton();
         selectedImageUri = uri;
         selectedImageMime = mimeType;
         selectedImageBytes = null;
@@ -350,6 +400,7 @@ public class MainActivity extends AppCompatActivity {
                     if (generation == imageLoadGeneration && !isFinishing()) {
                         selectedImageBytes = imageBytes;
                         imagePreview.setImageBitmap(bitmap);
+                        detectionOverlay.setImageSize(bitmap.getWidth(), bitmap.getHeight());
                         imagePreview.setVisibility(View.VISIBLE);
                         imagePlaceholder.setVisibility(View.GONE);
                         imageFileInfo.setText(selectedImageName + " · " + ImageFileValidator.formatBytes(imageBytes.length));
@@ -409,6 +460,8 @@ public class MainActivity extends AppCompatActivity {
     private void showImageError(long generation, int messageResource) {
         runOnUiThread(() -> {
             if (generation == imageLoadGeneration && !isFinishing()) {
+                clearResult();
+                processing = false;
                 imagePreview.setImageDrawable(null);
                 imagePreview.setVisibility(View.GONE);
                 imagePlaceholder.setVisibility(View.VISIBLE);
@@ -432,6 +485,7 @@ public class MainActivity extends AppCompatActivity {
         selectedImageMime = null;
         imageFileInfo.setText("No image selected");
         processing = false;
+        clearResult();
         updateSubmitButton();
     }
 
@@ -459,166 +513,137 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
         processing = true;
+        final long requestGeneration = imageLoadGeneration;
+        boolean useMock = mockModeToggle.isChecked();
+        int mockScenario = mockScenarioSpinner.getSelectedItemPosition();
+        clearResult();
         updateSubmitButton();
-        imageStatus.setText("Sending image to OpenVisionAPI…");
+        imageStatus.setText(useMock ? "MOCK/DEMO running — no API request will be sent."
+                : "Sending image to OpenVisionAPI…");
+        loadingIndicator.setVisibility(View.VISIBLE);
+        retryButton.setVisibility(View.GONE);
+        resultContainer.setVisibility(View.GONE);
         byte[] payload = selectedImageBytes;
         String filename = selectedImageName;
         String mime = selectedImageMime;
         imageWorker.execute(() -> {
             try {
-                OpenVisionApiClient.ApiResult result = OpenVisionApiClient.processImage(
-                        BuildConfig.IMAGE_API_URL,
-                        BuildConfig.PIXICULAR_API_KEY,
-                        payload,
-                        filename,
-                        mime);
+                OpenVisionApiClient.ApiResult result;
+                if (useMock) {
+                    if (mockScenario == MockApiResponses.ERROR) {
+                        throw new IOException(MockApiResponses.errorMessage());
+                    }
+                    result = new OpenVisionApiClient.ApiResult(200,
+                            MockApiResponses.responseFor(mockScenario));
+                } else {
+                    result = OpenVisionApiClient.processImage(
+                            BuildConfig.IMAGE_API_URL,
+                            BuildConfig.PIXICULAR_API_KEY,
+                            payload,
+                            filename,
+                            mime);
+                }
                 runOnUiThread(() -> {
+                    if (requestGeneration != imageLoadGeneration || isFinishing()) return;
                     processing = false;
                     updateSubmitButton();
-                    if (result.isSuccess()) {
-                        imageStatus.setText("Processing completed (HTTP " + result.statusCode + ").");
-                        showApiResult(result.body);
-                    } else {
-                        imageStatus.setText("API error (HTTP " + result.statusCode + "). Please try again.");
-                        showApiResult(result.body);
+                    loadingIndicator.setVisibility(View.GONE);
+                    if (!result.isSuccess()) {
+                        imageStatus.setText("API request failed (HTTP " + result.statusCode + "). Please try again.");
+                        showErrorResult("The server could not process this image (HTTP " + result.statusCode + ").", false);
+                        return;
+                    }
+                    try {
+                        ApiResponseParser parsed = ApiResponseParser.parse(result.body);
+                        imageStatus.setText(useMock ? "MOCK/DEMO complete — sample data, no API request sent."
+                                : "Processing completed (HTTP " + result.statusCode + ").");
+                        showApiResult(parsed, useMock);
+                    } catch (JSONException exception) {
+                        imageStatus.setText(useMock ? "MOCK/DEMO sample response could not be parsed."
+                                : "The API response could not be read. Please try again.");
+                        showErrorResult(useMock ? "MOCK/DEMO fixture does not match the current parser."
+                                : "The API returned an empty, failed, or unsupported response.", useMock);
                     }
                 });
             } catch (Exception exception) {
                 runOnUiThread(() -> {
+                    if (requestGeneration != imageLoadGeneration || isFinishing()) return;
                     processing = false;
                     updateSubmitButton();
-                    imageStatus.setText("Could not process image: " + exception.getMessage());
+                    loadingIndicator.setVisibility(View.GONE);
+                    imageStatus.setText(useMock ? "MOCK/DEMO simulated request error. No API request was sent."
+                            : "Could not process image. Check your connection and try again.");
+                    showErrorResult(useMock ? MockApiResponses.errorMessage()
+                            : "Request failed: " + safeErrorMessage(exception), useMock);
                 });
             }
         });
     }
 
-    private void showApiResult(String response) {
-        String formatted = formatApiResponse(response);
-
-        TextView result = text(formatted, 14, COLOR_TEXT, false);
-        result.setTextIsSelectable(true);
-        result.setLineSpacing(dp(5), 1f);
-        result.setPadding(dp(14), dp(14), dp(14), dp(14));
-        result.setBackground(rounded(Color.rgb(10, 14, 30), COLOR_BORDER, 12));
-
-        // Replace the previous result rather than adding a new card every time.
-        View previousResult = uploadCard.findViewWithTag("api_result_card");
-        if (previousResult != null) {
-            uploadCard.removeView(previousResult);
+    private void showApiResult(ApiResponseParser parsed, boolean isMock) {
+        resultContainer.removeAllViews();
+        if (isMock) addResultHeading("MOCK / DEMO — SAMPLE DATA, NOT A REAL ANALYSIS");
+        addResultHeading(parsed.hasUsefulResults ? "Analysis results" : "No results");
+        if (!parsed.hasUsefulResults) {
+            addResultText("The API completed successfully but returned no usable labels or extracted text.");
         }
-        result.setTag("api_result_card");
-
-        int index = uploadCard.indexOfChild(imageFileInfo);
-        uploadCard.addView(result,
-                index >= 0 ? index + 1 : uploadCard.getChildCount(),
-                margin(0, 0, 0, 12));
+        if (!parsed.labels.isEmpty()) {
+            addResultHeading("Detected labels");
+            for (ApiResponseParser.Label label : parsed.labels) {
+                String detail = label.name + (label.confidence.isEmpty() ? "" : "\n" + label.confidence)
+                        + (label.categories.isEmpty() ? "" : "\nCategory: " + label.categories);
+                addResultText(detail);
+            }
+        }
+        if (!parsed.textLines.isEmpty()) {
+            addResultHeading("Extracted text");
+            for (String line : parsed.textLines) addResultText(line);
+        }
+        StringBuilder metadata = new StringBuilder();
+        if (!parsed.requestId.isEmpty()) metadata.append("Request ID: ").append(parsed.requestId);
+        if (!parsed.processingTime.isEmpty()) appendMetadata(metadata, "Processing time: " + parsed.processingTime);
+        if (!parsed.credits.isEmpty()) appendMetadata(metadata, "Credits used: " + parsed.credits);
+        if (metadata.length() > 0) { addResultHeading("Request details"); addResultText(metadata.toString()); }
+        detectionOverlay.setLabels(parsed.labels);
+        detectionOverlay.setVisibility(hasBoxes(parsed.labels) ? View.VISIBLE : View.GONE);
+        resultContainer.setVisibility(View.VISIBLE);
+        retryButton.setVisibility(View.GONE);
     }
 
-    /** Converts the Pixicular JSON response into readable object-detection and OCR results. */
-    private String formatApiResponse(String response) {
-        if (response == null || response.trim().isEmpty()) {
-            return "No results\n\nThe API returned an empty response.";
-        }
-
-        try {
-            JSONObject root = new JSONObject(response);
-            boolean success = root.optBoolean("success", false);
-            StringBuilder output = new StringBuilder();
-            output.append(success ? "✓ ANALYSIS COMPLETE" : "⚠ ANALYSIS FAILED");
-
-            String requestId = root.optString("requestId", "");
-            if (!requestId.isEmpty()) {
-                output.append("\nRequest ID: ").append(requestId);
-            }
-
-            JSONObject services = root.optJSONObject("services");
-            if (services == null) {
-                String message = root.optString("message", "No service results were returned.");
-                output.append("\n\n").append(message);
-                return output.toString();
-            }
-
-            output.append("\n\nDETECTED OBJECTS");
-            JSONObject labelService = services.optJSONObject("detect-labels");
-            JSONArray labels = labelService == null ? null : labelService.optJSONArray("labels");
-            if (labels == null || labels.length() == 0) {
-                output.append("\nNo objects detected.");
-            } else {
-                for (int i = 0; i < labels.length(); i++) {
-                    JSONObject label = labels.optJSONObject(i);
-                    if (label == null) continue;
-
-                    String name = label.optString("name", "Unknown object");
-                    double confidence = label.optDouble("confidence", -1);
-                    output.append("\n• ").append(name);
-                    if (confidence >= 0) {
-                        output.append(" — ").append(String.format(java.util.Locale.US, "%.2f%%", confidence));
-                    }
-
-                    JSONArray categories = label.optJSONArray("categories");
-                    if (categories != null && categories.length() > 0) {
-                        output.append("\n  Category: ");
-                        for (int j = 0; j < categories.length(); j++) {
-                            if (j > 0) output.append(", ");
-                            output.append(categories.optString(j));
-                        }
-                    }
-                }
-            }
-
-            output.append("\n\nEXTRACTED TEXT (OCR)");
-            JSONObject textService = services.optJSONObject("detect-text");
-            JSONArray detections = textService == null ? null : textService.optJSONArray("detections");
-            if (detections == null || detections.length() == 0) {
-                output.append("\nNo text detected.");
-            } else {
-                for (int i = 0; i < detections.length(); i++) {
-                    JSONObject detection = detections.optJSONObject(i);
-                    if (detection == null) continue;
-
-                    String detectedText = detection.optString("detectedText", "").trim();
-                    if (detectedText.isEmpty()) continue;
-                    output.append("\n• ").append(detectedText);
-
-                    String type = detection.optString("type", "");
-                    double confidence = detection.optDouble("confidence", -1);
-                    if (!type.isEmpty() || confidence >= 0) {
-                        output.append(" ( ");
-                        boolean addSeparator = false;
-                        if (!type.isEmpty()) {
-                            output.append(type);
-                            addSeparator = true;
-                        }
-                        if (confidence >= 0) {
-                            if (addSeparator) output.append(" · ");
-                            output.append(String.format(java.util.Locale.US, "%.2f%% confidence", confidence));
-                        }
-                        output.append(" )");
-                    }
-                }
-            }
-
-            JSONObject photo = root.optJSONObject("photo");
-            if (photo != null) {
-                String status = photo.optString("status", "");
-                if (!status.isEmpty()) {
-                    output.append("\n\nPhoto status: ").append(status);
-                }
-            }
-
-            if (root.has("processingTimeMs")) {
-                output.append("\nProcessing time: ").append(root.optLong("processingTimeMs")) .append(" ms");
-            }
-            if (root.has("creditCost")) {
-                output.append("\nCredits used: ").append(root.optInt("creditCost"));
-            }
-
-            return output.toString();
-        } catch (JSONException exception) {
-            // If the server returns plain text or an unexpected JSON shape, still show its response.
-            return "API RESPONSE\n\n" + response;
-        }
+    private boolean hasBoxes(java.util.List<ApiResponseParser.Label> labels) {
+        for (ApiResponseParser.Label label : labels) if (label.hasBox) return true;
+        return false;
+    }
+    private void appendMetadata(StringBuilder value, String item) { if (value.length() > 0) value.append('\n'); value.append(item); }
+    private void addResultHeading(String value) {
+        TextView heading = text(value, 16, COLOR_PURPLE, true);
+        resultContainer.addView(heading, margin(0, 8, 0, 8));
+    }
+    private void addResultText(String value) {
+        TextView body = text(value, 14, COLOR_TEXT, false);
+        body.setLineSpacing(dp(4), 1f);
+        body.setPadding(dp(12), dp(11), dp(12), dp(11));
+        body.setBackground(rounded(Color.rgb(10, 14, 30), COLOR_BORDER, 12));
+        resultContainer.addView(body, margin(0, 0, 0, 8));
+    }
+    private void showErrorResult(String message, boolean isMock) {
+        resultContainer.removeAllViews();
+        addResultHeading(isMock ? "MOCK / DEMO — SIMULATED ERROR" : "Could not display results");
+        addResultText(message);
+        resultContainer.setVisibility(View.VISIBLE);
+        retryButton.setVisibility(selectedImageBytes != null && !processing ? View.VISIBLE : View.GONE);
+        detectionOverlay.setVisibility(View.GONE);
+    }
+    private String safeErrorMessage(Exception exception) {
+        String message = exception.getMessage();
+        if (message == null || message.trim().isEmpty()) return "network or response error";
+        return message.length() > 180 ? message.substring(0, 180) : message;
+    }
+    private void clearResult() {
+        if (resultContainer != null) { resultContainer.removeAllViews(); resultContainer.setVisibility(View.GONE); }
+        if (retryButton != null) retryButton.setVisibility(View.GONE);
+        if (loadingIndicator != null) loadingIndicator.setVisibility(View.GONE);
+        if (detectionOverlay != null) detectionOverlay.setVisibility(View.GONE);
     }
 
     private View makeBrandIcon() {
@@ -714,4 +739,27 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private static final class ImageTooLargeException extends IOException {}
+
+    private final class DetectionOverlay extends View {
+        private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private java.util.List<ApiResponseParser.Label> labels = java.util.Collections.emptyList();
+        private int imageWidth, imageHeight;
+        DetectionOverlay() { super(MainActivity.this); paint.setColor(COLOR_PURPLE); paint.setStyle(Paint.Style.STROKE); paint.setStrokeWidth(dp(2)); }
+        void setImageSize(int width, int height) { imageWidth = width; imageHeight = height; invalidate(); }
+        void setLabels(java.util.List<ApiResponseParser.Label> value) { labels = value; invalidate(); }
+        @Override protected void onDraw(Canvas canvas) {
+            super.onDraw(canvas);
+            if (imageWidth <= 0 || imageHeight <= 0) return;
+            float scale = Math.min(getWidth() / (float) imageWidth, getHeight() / (float) imageHeight);
+            float left = (getWidth() - imageWidth * scale) / 2f;
+            float top = (getHeight() - imageHeight * scale) / 2f;
+            for (ApiResponseParser.Label label : labels) if (label.hasBox) {
+                float x1 = left + label.x * imageWidth * scale;
+                float y1 = top + label.y * imageHeight * scale;
+                float x2 = left + (label.x + label.width) * imageWidth * scale;
+                float y2 = top + (label.y + label.height) * imageHeight * scale;
+                canvas.drawRect(x1, y1, x2, y2, paint);
+            }
+        }
+    }
 }
