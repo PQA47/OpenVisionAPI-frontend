@@ -13,7 +13,7 @@ public final class ImageFileValidator {
         return value.equals("image/jpeg") || value.equals("image/jpg") || value.equals("image/png") || value.equals("image/webp");
     }
 
-    public static String formatBytes(long bytes) {
+    public static boolean isValidSize(long bytes) {\n        return bytes > 0 && bytes <= MAX_IMAGE_BYTES;\n    }\n\n    public static String formatBytes(long bytes) {
         if (bytes < 1024) return bytes + " B";
         if (bytes < 1024 * 1024) return String.format(Locale.US, "%.1f KB", bytes / 1024.0);
         return String.format(Locale.US, "%.1f MB", bytes / (1024.0 * 1024.0));

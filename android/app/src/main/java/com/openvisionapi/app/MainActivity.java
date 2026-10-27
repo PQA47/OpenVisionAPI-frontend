@@ -18,6 +18,7 @@ import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.ProgressBar;
 import android.widget.ScrollView;
 import android.widget.TextView;
 
@@ -58,6 +59,12 @@ public class MainActivity extends AppCompatActivity {
     private TextView imageStatus;
     private TextView imageFileInfo;
     private Button submitButton;
+    private Button chooseButton;
+    private Button resetButton;
+    private ProgressBar loadingIndicator;
+    private LinearLayout resultsContainer;
+    private TextView errorView;
+    private View heroSection;
     private byte[] selectedImageBytes;
     private Uri selectedImageUri;
     private String selectedImageName;
@@ -130,7 +137,10 @@ public class MainActivity extends AppCompatActivity {
         pageContent.addView(description, margin(0, 0, 0, 22));
 
         Button explore = primaryButton(getString(R.string.choose_image));
-        explore.setOnClickListener(view -> imagePicker.launch("image/*"));
+        explore.setOnClickListener(view -> {
+            appScrollView.smoothScrollTo(0, uploadCard.getTop());
+            if (!processing) imagePicker.launch("image/*");
+        });
         pageContent.addView(explore, margin(0, 0, 0, 14));
 
         TextView note = text(getString(R.string.hero_note), 12, COLOR_MUTED, false);
@@ -204,13 +214,13 @@ public class MainActivity extends AppCompatActivity {
 
         LinearLayout buttons = new LinearLayout(this);
         buttons.setOrientation(LinearLayout.HORIZONTAL);
-        Button chooseButton = primaryButton(getString(R.string.choose_image));
-        chooseButton.setOnClickListener(view -> imagePicker.launch("image/*"));
+        chooseButton = primaryButton(getString(R.string.choose_image));
+        chooseButton.setOnClickListener(view -> { if (!processing) imagePicker.launch("image/*"); });
         buttons.addView(chooseButton, new LinearLayout.LayoutParams(
                 0, dp(48), 1
         ));
 
-        Button resetButton = secondaryButton(getString(R.string.reset_image));
+        resetButton = secondaryButton("Process another image");
         resetButton.setOnClickListener(view -> resetImage());
         LinearLayout.LayoutParams resetParams = new LinearLayout.LayoutParams(
                 0, dp(48), 1
@@ -223,6 +233,21 @@ public class MainActivity extends AppCompatActivity {
         submitButton.setAlpha(0.55f);
         submitButton.setOnClickListener(view -> submitSelectedImage());
         uploadCard.addView(submitButton, margin(0, 12, 0, 0));
+
+        loadingIndicator = new ProgressBar(this);
+        loadingIndicator.setIndeterminate(true);
+        loadingIndicator.setVisibility(View.GONE);
+        uploadCard.addView(loadingIndicator, margin(0, 14, 0, 8));
+
+        errorView = text("", 13, Color.rgb(255, 145, 145), false);
+        errorView.setVisibility(View.GONE);
+        errorView.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
+        uploadCard.addView(errorView, margin(0, 8, 0, 8));
+
+        resultsContainer = new LinearLayout(this);
+        resultsContainer.setOrientation(LinearLayout.VERTICAL);
+        resultsContainer.setVisibility(View.GONE);
+        uploadCard.addView(resultsContainer, margin(0, 14, 0, 0));
     }
 
     private void buildClosingSection() {
@@ -313,9 +338,10 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void loadSelectedImage(Uri uri) {
-        if (uri == null) {
+        if (uri == null || processing) {
             return;
         }
+        clearResultsAndErrors();
 
         ContentResolver resolver = getContentResolver();
         String mimeType = resolver.getType(uri);
@@ -451,6 +477,9 @@ public class MainActivity extends AppCompatActivity {
         submitButton.setEnabled(enabled);
         submitButton.setAlpha(enabled ? 1f : 0.55f);
         submitButton.setText(processing ? "Processing…" : "Process image");
+        if (chooseButton != null) chooseButton.setEnabled(!processing);
+        if (resetButton != null) resetButton.setEnabled(!processing);
+        if (loadingIndicator != null) loadingIndicator.setVisibility(processing ? View.VISIBLE : View.GONE);
     }
 
     private void submitSelectedImage() {
@@ -475,44 +504,84 @@ public class MainActivity extends AppCompatActivity {
                 runOnUiThread(() -> {
                     processing = false;
                     updateSubmitButton();
-                    if (result.isSuccess()) {
-                        imageStatus.setText("Processing completed (HTTP " + result.statusCode + ").");
+                    if (result.isSuccess() && responseIndicatesSuccess(result.body)) {
+                        imageStatus.setText("Processing completed successfully.");
                         showApiResult(result.body);
                     } else {
-                        imageStatus.setText("API error (HTTP " + result.statusCode + "). Please try again.");
-                        showApiResult(result.body);
+                        String message = apiErrorMessage(result);
+                        imageStatus.setText("Processing failed. Please check the message below and try again.");
+                        showError(message);
                     }
                 });
             } catch (Exception exception) {
                 runOnUiThread(() -> {
                     processing = false;
                     updateSubmitButton();
-                    imageStatus.setText("Could not process image: " + exception.getMessage());
+                    imageStatus.setText("Could not process image.");
+                    showError(userFriendlyError(exception));
                 });
             }
         });
     }
 
     private void showApiResult(String response) {
-        String formatted = formatApiResponse(response);
+        resultsContainer.removeAllViews();
+        TextView heading = text("Analysis results", 18, COLOR_TEXT, true);
+        resultsContainer.addView(heading, margin(0, 0, 0, 10));
 
-        TextView result = text(formatted, 14, COLOR_TEXT, false);
+        TextView result = text(formatApiResponse(response), 14, COLOR_TEXT, false);
         result.setTextIsSelectable(true);
         result.setLineSpacing(dp(5), 1f);
         result.setPadding(dp(14), dp(14), dp(14), dp(14));
         result.setBackground(rounded(Color.rgb(10, 14, 30), COLOR_BORDER, 12));
+        resultsContainer.addView(result, margin(0, 0, 0, 12));
+        resultsContainer.setVisibility(View.VISIBLE);
+    }
 
-        // Replace the previous result rather than adding a new card every time.
-        View previousResult = uploadCard.findViewWithTag("api_result_card");
-        if (previousResult != null) {
-            uploadCard.removeView(previousResult);
+    private void showError(String message) {
+        errorView.setText(message);
+        errorView.setVisibility(View.VISIBLE);
+    }
+
+    private void clearResultsAndErrors() {
+        if (resultsContainer != null) {
+            resultsContainer.removeAllViews();
+            resultsContainer.setVisibility(View.GONE);
         }
-        result.setTag("api_result_card");
+        if (errorView != null) {
+            errorView.setText("");
+            errorView.setVisibility(View.GONE);
+        }
+    }
 
-        int index = uploadCard.indexOfChild(imageFileInfo);
-        uploadCard.addView(result,
-                index >= 0 ? index + 1 : uploadCard.getChildCount(),
-                margin(0, 0, 0, 12));
+    private boolean responseIndicatesSuccess(String response) {
+        if (response == null || response.trim().isEmpty()) return false;
+        try {
+            JSONObject root = new JSONObject(response);
+            // APIs without an explicit success field are accepted when HTTP status is 2xx.
+            return !root.has("success") || root.optBoolean("success", false);
+        } catch (JSONException ignored) {
+            // A non-JSON body on a 2xx response is still a successful API response.
+            return true;
+        }
+    }
+
+    private String apiErrorMessage(OpenVisionApiClient.ApiResult result) {
+        String detail = "";
+        try {
+            JSONObject root = new JSONObject(result.body);
+            detail = root.optString("message", root.optString("error", ""));
+        } catch (Exception ignored) { }
+        if (detail.trim().isEmpty()) detail = "The server returned HTTP " + result.statusCode + ".";
+        return detail;
+    }
+
+    private String userFriendlyError(Exception exception) {
+        String message = exception.getMessage();
+        if (message == null || message.trim().isEmpty()) return "A network or configuration error occurred. Check your connection and API settings.";
+        if (message.contains("not configured")) return message;
+        if (exception instanceof IOException) return "Network request failed. Check your internet connection and try again. Details: " + message;
+        return "Unexpected processing error. Please try again.";
     }
 
     /** Converts the Pixicular JSON response into readable object-detection and OCR results. */
