@@ -1,0 +1,51 @@
+apply plugin: 'com.android.application'
+
+import java.util.Properties
+
+// Read private API settings from android/local.properties. This file must not be committed.
+def localProps = new Properties()
+def localPropsFile = rootProject.file('local.properties')
+if (localPropsFile.exists()) {
+    localPropsFile.withInputStream { stream -> localProps.load(stream) }
+}
+
+def imageApiUrl = localProps.getProperty('IMAGE_API_URL', 'https://api.pixicular.com/v1/detect').trim()
+def pixicularApiKey = localProps.getProperty('PIXICULAR_API_KEY', '').trim()
+// Escape values before embedding them in Java string constants.
+def asJavaString = { value -> value.replace('\\', '\\\\').replace('"', '\\"') }
+
+android {
+    buildFeatures { buildConfig true }
+    namespace = "com.openvisionapi.app"
+    compileSdk = rootProject.ext.compileSdkVersion
+    defaultConfig {
+        applicationId "com.openvisionapi.app"
+        minSdkVersion rootProject.ext.minSdkVersion
+        targetSdkVersion rootProject.ext.targetSdkVersion
+        versionCode 1
+        versionName "1.0"
+        buildConfigField "String", "IMAGE_API_URL", "\"${asJavaString(imageApiUrl)}\""
+        buildConfigField "String", "PIXICULAR_API_KEY", "\"${asJavaString(pixicularApiKey)}\""
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+}
+
+dependencies {
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
+    implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
+    implementation "androidx.activity:activity:$androidxActivityVersion"
+    implementation "androidx.core:core:$androidxCoreVersion"
+    testImplementation "junit:junit:$junitVersion"
+    androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
+    androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
+}

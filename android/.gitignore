@@ -1,0 +1,13 @@
+# Android build outputs and local settings
+/.gradle/
+/**/build/
+local.properties
+*.apk
+*.aab
+*.class
+*.log
+*.iml
+.idea/
+.externalNativeBuild/
+.cxx/
+*.hprof
