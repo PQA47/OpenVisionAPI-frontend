@@ -9,8 +9,12 @@ if (localPropsFile.exists()) {
     localPropsFile.withInputStream { stream -> localProps.load(stream) }
 }
 
-def imageApiUrl = localProps.getProperty('IMAGE_API_URL', 'https://api.pixicular.com/v1/detect').trim()
-def pixicularApiKey = localProps.getProperty('PIXICULAR_API_KEY', '').trim()
+// Resolution order for each setting: android/local.properties, then an environment variable of the
+// same name (handy for CI), then the default. Never commit a real key.
+def imageApiUrl = localProps.getProperty('IMAGE_API_URL',
+        System.getenv('IMAGE_API_URL') ?: 'https://api.pixicular.com/v1/detect').trim()
+def pixicularApiKey = localProps.getProperty('PIXICULAR_API_KEY',
+        System.getenv('PIXICULAR_API_KEY') ?: '').trim()
 // Escape values before embedding them in Java string constants.
 def asJavaString = { value -> value.replace('\\', '\\\\').replace('"', '\\"') }
 
@@ -46,6 +50,8 @@ dependencies {
     implementation "androidx.activity:activity:$androidxActivityVersion"
     implementation "androidx.core:core:$androidxCoreVersion"
     testImplementation "junit:junit:$junitVersion"
+    // android.jar only contains stubs for org.json on the JVM, so unit tests need the real library.
+    testImplementation "org.json:json:$orgJsonVersion"
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
 }

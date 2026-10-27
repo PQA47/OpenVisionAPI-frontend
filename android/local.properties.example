@@ -1,0 +1,14 @@
+# Copy this file to android/local.properties (which is git-ignored) and fill in your own values.
+# Never commit local.properties or paste a real key into issues, chats or screenshots.
+
+# Path to your Android SDK. Android Studio normally writes this line for you.
+#   Windows: sdk.dir=C\:\\Users\\YOUR_USER\\AppData\\Local\\Android\\Sdk
+#   macOS:   sdk.dir=/Users/YOUR_USER/Library/Android/sdk
+#   Linux:   sdk.dir=/home/YOUR_USER/Android/Sdk
+sdk.dir=/path/to/your/Android/Sdk
+
+# Image-analysis endpoint (HTTPS required: Android blocks cleartext HTTP by default).
+IMAGE_API_URL=https://api.pixicular.com/v1/detect
+
+# Your own API key, sent as "Authorization: Bearer <key>".
+PIXICULAR_API_KEY=PASTE_YOUR_API_KEY_HERE

@@ -37,6 +37,20 @@ public final class OpenVisionApiClient {
             String filename,
             String mimeType
     ) throws IOException {
+        return processImage(endpoint, apiKey, image, filename, mimeType,
+                CONNECT_TIMEOUT_MS, READ_TIMEOUT_MS);
+    }
+
+    /** Same as above with explicit timeouts (milliseconds); used by tests to avoid long waits. */
+    static ApiResult processImage(
+            String endpoint,
+            String apiKey,
+            byte[] image,
+            String filename,
+            String mimeType,
+            int connectTimeoutMs,
+            int readTimeoutMs
+    ) throws IOException {
         if (endpoint == null || endpoint.trim().isEmpty()) {
             throw new IOException("API endpoint is not configured. Set IMAGE_API_URL in local.properties.");
         }
@@ -50,8 +64,8 @@ public final class OpenVisionApiClient {
         String boundary = "----OpenVisionBoundary" + UUID.randomUUID().toString().replace("-", "");
         HttpURLConnection connection = (HttpURLConnection) new URL(endpoint).openConnection();
         connection.setRequestMethod("POST");
-        connection.setConnectTimeout(CONNECT_TIMEOUT_MS);
-        connection.setReadTimeout(READ_TIMEOUT_MS);
+        connection.setConnectTimeout(connectTimeoutMs);
+        connection.setReadTimeout(readTimeoutMs);
         connection.setDoOutput(true);
         connection.setRequestProperty("Accept", "application/json");
         connection.setRequestProperty("Authorization", "Bearer " + apiKey.trim());
