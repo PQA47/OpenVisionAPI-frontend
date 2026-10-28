@@ -103,7 +103,6 @@ public class MainActivity extends AppCompatActivity {
         header.addView(makeBrandName(), new LinearLayout.LayoutParams(
                 0, ViewGroup.LayoutParams.WRAP_CONTENT, 1
         ));
-        header.addView(makeHeaderButton());
 
         appScrollView = findViewById(R.id.app_scroll);
         pageContent = new LinearLayout(this);
@@ -115,7 +114,6 @@ public class MainActivity extends AppCompatActivity {
         buildFeaturesSection();
         buildWorkflowSection();
         buildImageSection();
-        buildClosingSection();
     }
 
     private void buildHeroSection() {
@@ -137,20 +135,7 @@ public class MainActivity extends AppCompatActivity {
 
         TextView description = text(getString(R.string.hero_description), 15, COLOR_MUTED, false);
         description.setLineSpacing(dp(6), 1f);
-        pageContent.addView(description, margin(0, 0, 0, 22));
-
-        Button explore = primaryButton(getString(R.string.choose_image));
-        explore.setOnClickListener(view -> imagePicker.launch("image/*"));
-        pageContent.addView(explore, margin(0, 0, 0, 14));
-
-        TextView note = text(getString(R.string.hero_note), 12, COLOR_MUTED, false);
-        pageContent.addView(note, margin(0, 0, 0, 6));
-
-        ImageView illustration = new ImageView(this);
-        illustration.setImageResource(R.drawable.hero_illustration);
-        illustration.setAdjustViewBounds(true);
-        illustration.setScaleType(ImageView.ScaleType.FIT_CENTER);
-        pageContent.addView(illustration, margin(0, 16, 0, 28));
+        pageContent.addView(description, margin(0, 0, 0, 0));
     }
 
     private void buildFeaturesSection() {
@@ -268,18 +253,6 @@ public class MainActivity extends AppCompatActivity {
         retryButton.setVisibility(View.GONE);
         retryButton.setOnClickListener(view -> submitSelectedImage());
         uploadCard.addView(retryButton, margin(0, 10, 0, 0));
-    }
-
-    private void buildClosingSection() {
-        TextView title = text(getString(R.string.closing_title), 25, COLOR_TEXT, true);
-        title.setGravity(Gravity.CENTER);
-        title.setLineSpacing(dp(2), 1f);
-        pageContent.addView(title, margin(0, 8, 0, 10));
-
-        TextView description = text(getString(R.string.closing_description), 14, COLOR_MUTED, false);
-        description.setGravity(Gravity.CENTER);
-        description.setLineSpacing(dp(5), 1f);
-        pageContent.addView(description, margin(0, 0, 0, 12));
     }
 
     private void addSectionHeading(String kicker, String title, String description) {
@@ -660,14 +633,6 @@ public class MainActivity extends AppCompatActivity {
         TextView brand = text(getString(R.string.app_brand), 18, COLOR_TEXT, true);
         brand.setLetterSpacing(-0.02f);
         return brand;
-    }
-
-    private Button makeHeaderButton() {
-        Button button = secondaryButton(getString(R.string.about_button));
-        button.setOnClickListener(view -> appScrollView.smoothScrollTo(
-                0, pageContent.getChildAt(pageContent.getChildCount() - 1).getTop()
-        ));
-        return button;
     }
 
     private Button primaryButton(String label) {
