@@ -7,7 +7,6 @@
     <string name="hero_title">Give your images\na new perspective.</string>
     <string name="hero_description">Explore the power of computer vision with OpenVisionAPI. Turn visual information into insights through an intuitive, developer-friendly experience.</string>
     <string name="choose_image">Choose an image</string>
-    <string name="hero_note">Built for curious minds and AI developers</string>
     <string name="features_kicker">WHAT YOU CAN EXPLORE</string>
     <string name="features_title">Vision meets intelligence.</string>
     <string name="features_description">Discover the building blocks of a smarter visual experience.</string>
@@ -37,7 +36,4 @@
     <string name="image_too_large">Choose an image smaller than 10 MB.</string>
     <string name="image_read_error">We could not open that image. Please try another one.</string>
     <string name="reset_image">Reset</string>
-    <string name="about_button">About</string>
-    <string name="closing_title">Make visual AI more approachable.</string>
-    <string name="closing_description">A clean starting point for exploring computer vision and building useful AI-powered applications.</string>
 </resources>

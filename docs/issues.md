@@ -10,4 +10,3 @@
 | 06 | Long description and workflow occupy space | Low | Resolved in code: removed the feature cards, workflow steps, and closing copy; the primary image workspace now appears at the top of the page. |
 | 07 | Prepare for a physical Android phone | Medium | Partially resolved: manifest INTERNET permission, application ID, minSdk 24, targetSdk 36, system document image picker, and HTTPS default are present. Build/install and real-device checks remain pending because Java/Android tooling and a device were unavailable. No cleartext exception or API secret was added. |
 
-The repository's `.git` directory is empty, so Git status and pre-existing tracked changes could not be inspected in this checkout.

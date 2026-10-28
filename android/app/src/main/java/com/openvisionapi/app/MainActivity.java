@@ -132,10 +132,7 @@ public class MainActivity extends AppCompatActivity {
 
         TextView description = text(getString(R.string.hero_description), 15, COLOR_MUTED, false);
         description.setLineSpacing(dp(6), 1f);
-        pageContent.addView(description, margin(0, 0, 0, 22));
-
-        TextView note = text(getString(R.string.hero_note), 12, COLOR_MUTED, false);
-        pageContent.addView(note, margin(0, 0, 0, 8));
+        pageContent.addView(description, margin(0, 0, 0, 0));
     }
 
     private void buildFeaturesSection() {
@@ -266,18 +263,6 @@ public class MainActivity extends AppCompatActivity {
         retryButton.setVisibility(View.GONE);
         retryButton.setOnClickListener(view -> submitSelectedImage());
         uploadCard.addView(retryButton, margin(0, 10, 0, 0));
-    }
-
-    private void buildClosingSection() {
-        TextView title = text(getString(R.string.closing_title), 25, COLOR_TEXT, true);
-        title.setGravity(Gravity.CENTER);
-        title.setLineSpacing(dp(2), 1f);
-        pageContent.addView(title, margin(0, 8, 0, 10));
-
-        TextView description = text(getString(R.string.closing_description), 14, COLOR_MUTED, false);
-        description.setGravity(Gravity.CENTER);
-        description.setLineSpacing(dp(5), 1f);
-        pageContent.addView(description, margin(0, 0, 0, 12));
     }
 
     private void addSectionHeading(String kicker, String title, String description) {
