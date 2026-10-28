@@ -7,14 +7,14 @@ OpenVisionAPI is an Android app for image analysis using Pixicular API. The app 
 - Select and preview PNG, JPEG and WEBP images (maximum 10 MB).
 - Submit images to the configured API endpoint.
 - View labels, confidence, categories, extracted text, and available request metadata.
-- Try mock tests without needing an API request.
+- Try success, empty-result, and simulated-error MOCK/DEMO scenarios without selecting an image or sending an API request.
 - Reset the selected image and retry a failed request.
 
 ## Prerequisites
 
 - Android Studio with Android SDK Platform 36 installed.
 - JDK 17 or a JDK supported by the installed Android Gradle Plugin.
-- An Android emulator running Android 7.0 or later to run the app.
+- An Android emulator or phone running Android 7.0 (API 24) or later to run the app.
 - For live requests, a valid API endpoint and API key. Mock mode does not require credentials.
 
 ## Setup
@@ -30,6 +30,8 @@ OpenVisionAPI is an Android app for image analysis using Pixicular API. The app 
 
    Keep your existing sdk.dir value if Android Studio already configured it. Replace only the API URL/key if your working Pixicular endpoint differs from the default above. Do NOT share the key to untrusted individuals.
 
-3. In Android Studio, select an Android emulator and run the `app` configuration.
-4. To use live analysis, choose an image and tap **Process image**. To try the UI without credentials, choose an image, enable **Use MOCK/DEMO mode**, select a scenario, and tap **Process image**.
+3. In Android Studio, select an Android emulator or connected Android phone and run the `app` configuration. The project uses application ID `com.openvisionapi.app`, minimum Android API 24, and target API 36.
+4. For a live request, choose a PNG, JPEG, or WEBP image up to 10 MB and tap **Process image**. For a credential-free demo, enable **Use MOCK/DEMO mode**, select a scenario, and tap **Process image**; no image is needed and this mode never calls the live API.
+
+To build a debug APK from the `android` directory, run `./gradlew testDebugUnitTest assembleDebug`. Install the resulting `app/build/outputs/apk/debug/app-debug.apk` on a connected device with `adb install -r app/build/outputs/apk/debug/app-debug.apk`. Live API use requires a valid HTTPS endpoint and key configured locally; mock mode does not.
 

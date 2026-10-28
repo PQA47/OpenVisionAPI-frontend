@@ -103,7 +103,6 @@ public class MainActivity extends AppCompatActivity {
         header.addView(makeBrandName(), new LinearLayout.LayoutParams(
                 0, ViewGroup.LayoutParams.WRAP_CONTENT, 1
         ));
-        header.addView(makeHeaderButton());
 
         appScrollView = findViewById(R.id.app_scroll);
         pageContent = new LinearLayout(this);
@@ -111,11 +110,7 @@ public class MainActivity extends AppCompatActivity {
         pageContent.setPadding(dp(22), dp(26), dp(22), dp(36));
         appScrollView.addView(pageContent);
 
-        buildHeroSection();
-        buildFeaturesSection();
-        buildWorkflowSection();
         buildImageSection();
-        buildClosingSection();
     }
 
     private void buildHeroSection() {
@@ -139,18 +134,8 @@ public class MainActivity extends AppCompatActivity {
         description.setLineSpacing(dp(6), 1f);
         pageContent.addView(description, margin(0, 0, 0, 22));
 
-        Button explore = primaryButton(getString(R.string.choose_image));
-        explore.setOnClickListener(view -> imagePicker.launch("image/*"));
-        pageContent.addView(explore, margin(0, 0, 0, 14));
-
         TextView note = text(getString(R.string.hero_note), 12, COLOR_MUTED, false);
-        pageContent.addView(note, margin(0, 0, 0, 6));
-
-        ImageView illustration = new ImageView(this);
-        illustration.setImageResource(R.drawable.hero_illustration);
-        illustration.setAdjustViewBounds(true);
-        illustration.setScaleType(ImageView.ScaleType.FIT_CENTER);
-        pageContent.addView(illustration, margin(0, 16, 0, 28));
+        pageContent.addView(note, margin(0, 0, 0, 8));
     }
 
     private void buildFeaturesSection() {
@@ -208,7 +193,9 @@ public class MainActivity extends AppCompatActivity {
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT
         ));
-        uploadCard.addView(previewFrame, margin(0, 0, 0, 14));
+        LinearLayout.LayoutParams previewParams = margin(0, 0, 0, 14);
+        previewParams.height = dp(230);
+        uploadCard.addView(previewFrame, previewParams);
 
         imageStatus = text(getString(R.string.image_upload_hint), 13, COLOR_MUTED, false);
         imageStatus.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
@@ -238,15 +225,26 @@ public class MainActivity extends AppCompatActivity {
         mockModeToggle.setTextColor(COLOR_TEXT);
         uploadCard.addView(mockModeToggle, margin(0, 12, 0, 0));
         mockScenarioSpinner = new Spinner(this);
-        ArrayAdapter<String> scenarios = new ArrayAdapter<>(this,
+        ArrayAdapter<String> scenarios = new ArrayAdapter<String>(this,
                 android.R.layout.simple_spinner_item,
-                new String[]{"Success — sample labels", "Empty — no results", "Error — simulated failure"});
+                new String[]{"Success — sample labels", "Empty — no results", "Error — simulated failure"}) {
+            @Override
+            public View getView(int position, View convertView, ViewGroup parent) {
+                return scenarioText(getItem(position), false);
+            }
+
+            @Override
+            public View getDropDownView(int position, View convertView, ViewGroup parent) {
+                return scenarioText(getItem(position), true);
+            }
+        };
         scenarios.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         mockScenarioSpinner.setAdapter(scenarios);
         mockScenarioSpinner.setVisibility(View.GONE);
         uploadCard.addView(mockScenarioSpinner, margin(0, 0, 0, 4));
         mockModeToggle.setOnCheckedChangeListener((buttonView, isChecked) -> {
             mockScenarioSpinner.setVisibility(isChecked ? View.VISIBLE : View.GONE);
+            updateSubmitButton();
             if (isChecked) imageStatus.setText("MOCK/DEMO mode enabled. No API request will be sent.");
             else if (!processing) imageStatus.setText(R.string.image_ready);
         });
@@ -501,20 +499,21 @@ public class MainActivity extends AppCompatActivity {
 
     private void updateSubmitButton() {
         if (submitButton == null) return;
-        boolean enabled = selectedImageBytes != null && selectedImageBytes.length > 0 && !processing;
+        boolean enabled = AnalysisFlow.canSubmit(mockModeToggle != null && mockModeToggle.isChecked(),
+                selectedImageBytes != null && selectedImageBytes.length > 0, processing);
         submitButton.setEnabled(enabled);
         submitButton.setAlpha(enabled ? 1f : 0.55f);
         submitButton.setText(processing ? "Processing…" : "Process image");
     }
 
     private void submitSelectedImage() {
-        if (processing || selectedImageBytes == null || selectedImageBytes.length == 0) {
-            imageStatus.setText("Choose a valid image before processing.");
+        boolean useMock = mockModeToggle.isChecked();
+        if (!AnalysisFlow.canSubmit(useMock, selectedImageBytes != null && selectedImageBytes.length > 0, processing)) {
+            imageStatus.setText("Choose a valid image before processing live analysis, or enable MOCK/DEMO mode.");
             return;
         }
         processing = true;
         final long requestGeneration = imageLoadGeneration;
-        boolean useMock = mockModeToggle.isChecked();
         int mockScenario = mockScenarioSpinner.getSelectedItemPosition();
         clearResult();
         updateSubmitButton();
@@ -528,21 +527,9 @@ public class MainActivity extends AppCompatActivity {
         String mime = selectedImageMime;
         imageWorker.execute(() -> {
             try {
-                OpenVisionApiClient.ApiResult result;
-                if (useMock) {
-                    if (mockScenario == MockApiResponses.ERROR) {
-                        throw new IOException(MockApiResponses.errorMessage());
-                    }
-                    result = new OpenVisionApiClient.ApiResult(200,
-                            MockApiResponses.responseFor(mockScenario));
-                } else {
-                    result = OpenVisionApiClient.processImage(
-                            BuildConfig.IMAGE_API_URL,
-                            BuildConfig.PIXICULAR_API_KEY,
-                            payload,
-                            filename,
-                            mime);
-                }
+                OpenVisionApiClient.ApiResult result = AnalysisFlow.execute(useMock, mockScenario,
+                        () -> OpenVisionApiClient.processImage(BuildConfig.IMAGE_API_URL,
+                                BuildConfig.PIXICULAR_API_KEY, payload, filename, mime));
                 runOnUiThread(() -> {
                     if (requestGeneration != imageLoadGeneration || isFinishing()) return;
                     processing = false;
@@ -631,7 +618,9 @@ public class MainActivity extends AppCompatActivity {
         addResultHeading(isMock ? "MOCK / DEMO — SIMULATED ERROR" : "Could not display results");
         addResultText(message);
         resultContainer.setVisibility(View.VISIBLE);
-        retryButton.setVisibility(selectedImageBytes != null && !processing ? View.VISIBLE : View.GONE);
+        retryButton.setVisibility(AnalysisFlow.canSubmit(isMock,
+                selectedImageBytes != null && selectedImageBytes.length > 0, processing)
+                ? View.VISIBLE : View.GONE);
         detectionOverlay.setVisibility(View.GONE);
     }
     private String safeErrorMessage(Exception exception) {
@@ -660,14 +649,6 @@ public class MainActivity extends AppCompatActivity {
         TextView brand = text(getString(R.string.app_brand), 18, COLOR_TEXT, true);
         brand.setLetterSpacing(-0.02f);
         return brand;
-    }
-
-    private Button makeHeaderButton() {
-        Button button = secondaryButton(getString(R.string.about_button));
-        button.setOnClickListener(view -> appScrollView.smoothScrollTo(
-                0, pageContent.getChildAt(pageContent.getChildCount() - 1).getTop()
-        ));
-        return button;
     }
 
     private Button primaryButton(String label) {
@@ -706,6 +687,14 @@ public class MainActivity extends AppCompatActivity {
         ));
         text.setIncludeFontPadding(false);
         return text;
+    }
+
+    private TextView scenarioText(String value, boolean dropdown) {
+        TextView item = text(value, 14, COLOR_TEXT, false);
+        item.setGravity(Gravity.CENTER_VERTICAL);
+        item.setPadding(dp(12), dp(10), dp(12), dp(10));
+        item.setBackgroundColor(dropdown ? COLOR_SURFACE : Color.rgb(24, 29, 51));
+        return item;
     }
 
     private GradientDrawable rounded(int fillColor, int strokeColor, int radius) {

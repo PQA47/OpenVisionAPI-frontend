@@ -5,6 +5,11 @@ import static org.junit.Assert.*;
 import android.content.Context;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.platform.app.InstrumentationRegistry;
+import androidx.test.core.app.ActivityScenario;
+import androidx.test.espresso.Espresso;
+import androidx.test.espresso.matcher.ViewMatchers;
+import androidx.test.espresso.assertion.ViewAssertions;
+import androidx.test.espresso.action.ViewActions;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -49,5 +54,49 @@ public class NativeAppInstrumentedTest {
     public void mockErrorScenarioIsExplicitlyMarked() {
         assertTrue(MockApiResponses.errorMessage().contains("MOCK/DEMO"));
         assertTrue(MockApiResponses.errorMessage().contains("No API request was sent"));
+    }
+
+    @Test
+    public void mockSuccessRunsWithoutSelectingImage() {
+        try (ActivityScenario<MainActivity> ignored = ActivityScenario.launch(MainActivity.class)) {
+        Espresso.onView(ViewMatchers.withText("Use MOCK/DEMO mode (no real API request)"))
+                .perform(ViewActions.click());
+        Espresso.onView(ViewMatchers.withText("Process image"))
+                .check(ViewAssertions.matches(ViewMatchers.isEnabled()))
+                .perform(ViewActions.click());
+        Espresso.onView(ViewMatchers.withText("Bicycle\n97.0% confidence\nCategory: Vehicle, Transport"))
+                .check(ViewAssertions.matches(ViewMatchers.isDisplayed()));
+        }
+    }
+
+    @Test
+    public void mockEmptyScenarioShowsNoResultsWithoutSelectingImage() {
+        try (ActivityScenario<MainActivity> ignored = ActivityScenario.launch(MainActivity.class)) {
+        Espresso.onView(ViewMatchers.withText("Use MOCK/DEMO mode (no real API request)"))
+                .perform(ViewActions.click());
+        Espresso.onView(ViewMatchers.withClassName(org.hamcrest.Matchers.endsWith("Spinner")))
+                .perform(ViewActions.click());
+        Espresso.onView(ViewMatchers.withText("Empty — no results")).perform(ViewActions.click());
+        Espresso.onView(ViewMatchers.withText("Process image")).perform(ViewActions.click());
+        Espresso.onView(ViewMatchers.withText("No results"))
+                .check(ViewAssertions.matches(ViewMatchers.isDisplayed()));
+        }
+    }
+
+    @Test
+    public void mockErrorWithoutImageOffersRetryAndCanRunAgain() {
+        try (ActivityScenario<MainActivity> ignored = ActivityScenario.launch(MainActivity.class)) {
+            Espresso.onView(ViewMatchers.withText("Use MOCK/DEMO mode (no real API request)"))
+                    .perform(ViewActions.click());
+            Espresso.onView(ViewMatchers.withClassName(org.hamcrest.Matchers.endsWith("Spinner")))
+                    .perform(ViewActions.click());
+            Espresso.onView(ViewMatchers.withText("Error — simulated failure")).perform(ViewActions.click());
+            Espresso.onView(ViewMatchers.withText("Process image")).perform(ViewActions.click());
+            Espresso.onView(ViewMatchers.withText("Try again"))
+                    .check(ViewAssertions.matches(ViewMatchers.isDisplayed()))
+                    .perform(ViewActions.click());
+            Espresso.onView(ViewMatchers.withText("MOCK / DEMO — SIMULATED ERROR"))
+                    .check(ViewAssertions.matches(ViewMatchers.isDisplayed()));
+        }
     }
 }
