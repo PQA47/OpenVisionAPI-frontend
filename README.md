@@ -4,6 +4,11 @@ OpenVisionAPI is an Android app for image analysis using Pixicular API. The app 
 
 ## Features
 
+- Professional landing page as the app entry screen with shortcuts to analysis, history, and appearance settings.
+- Persistent System / Light / Dark appearance selection, applied consistently across Landing, Image Analysis, Results, History, and Android system bars.
+- Centralized semantic colors for backgrounds, surfaces, text, borders, accent actions, and success/error states, with restrained 4–8 dp component corners.
+- Local analysis history that survives app restarts, including result JSON, timestamp, status, mock indicator, summary, label count, and a small managed thumbnail.
+- Reopen saved analysis results without another API request; delete individual records or clear history with confirmation.
 - Select and preview PNG, JPEG and WEBP images (maximum 10 MB).
 - Submit images to the configured API endpoint.
 - View labels, confidence, categories, extracted text, and available request metadata.
@@ -31,7 +36,10 @@ OpenVisionAPI is an Android app for image analysis using Pixicular API. The app 
    Keep your existing sdk.dir value if Android Studio already configured it. Replace only the API URL/key if your working Pixicular endpoint differs from the default above. Do NOT share the key to untrusted individuals.
 
 3. In Android Studio, select an Android emulator or connected Android phone and run the `app` configuration. The project uses application ID `com.openvisionapi.app`, minimum Android API 24, and target API 36.
-4. For a live request, choose a PNG, JPEG, or WEBP image up to 10 MB and tap **Process image**. For a credential-free demo, enable **Use MOCK/DEMO mode**, select a scenario, and tap **Process image**; no image is needed and this mode never calls the live API.
+4. The app opens on the Landing Page. Tap **Analyze an Image** to open the existing analysis screen or **History** to view saved sessions.
+5. Use **Theme** on the Landing, analysis, or History screen to choose **System default**, **Light mode**, or **Dark mode**. The selection is saved on-device and reapplied after restart; System follows the Android appearance setting.
+6. For a live request, choose a PNG, JPEG, or WEBP image up to 10 MB and tap **Process image**. For a credential-free demo, enable **Use MOCK/DEMO mode**, select a scenario, and tap **Process image**; no image is needed and this mode never calls the live API.
+7. Completed analyses and failed attempts are saved locally. Open a history item to view its saved response without making a new API request. History stores only a small thumbnail rather than a full duplicate of the original image. You can delete individual records or clear all records after confirmation.
 
-To build a debug APK from the `android` directory, run `./gradlew testDebugUnitTest assembleDebug`. Install the resulting `app/build/outputs/apk/debug/app-debug.apk` on a connected device with `adb install -r app/build/outputs/apk/debug/app-debug.apk`. Live API use requires a valid HTTPS endpoint and key configured locally; mock mode does not.
+To build a debug APK from the `android` directory, run `gradlew.bat testDebugUnitTest assembleDebug` in Windows PowerShell or `./gradlew testDebugUnitTest assembleDebug` on macOS/Linux. Install the resulting `app/build/outputs/apk/debug/app-debug.apk` on a connected device with `adb install -r app/build/outputs/apk/debug/app-debug.apk`. Live API use requires a valid HTTPS endpoint and key configured locally; mock mode does not.
 

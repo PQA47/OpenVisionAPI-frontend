@@ -1,6 +1,7 @@
 package com.openvisionapi.app;
 
 import android.content.ContentResolver;
+import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
@@ -44,15 +45,13 @@ import java.util.concurrent.Executors;
 import org.json.JSONException;
 
 public class MainActivity extends AppCompatActivity {
+    public static final String EXTRA_HISTORY_ID = "com.openvisionapi.app.EXTRA_HISTORY_ID";
     private static final int MAX_IMAGE_BYTES = (int) ImageFileValidator.MAX_IMAGE_BYTES;
-    private static final int COLOR_BACKGROUND = Color.rgb(8, 11, 23);
-    private static final int COLOR_SURFACE = Color.rgb(16, 21, 41);
-    private static final int COLOR_TEXT = Color.rgb(244, 245, 255);
-    private static final int COLOR_MUTED = Color.rgb(161, 169, 197);
-    private static final int COLOR_PURPLE = Color.rgb(177, 154, 255);
-    private static final int COLOR_BORDER = Color.rgb(54, 59, 89);
+    private int COLOR_BACKGROUND, COLOR_SURFACE, COLOR_TEXT, COLOR_MUTED, COLOR_PURPLE, COLOR_BORDER;
+    private int COLOR_SURFACE_VARIANT, COLOR_ACCENT_SURFACE, COLOR_PRIMARY, COLOR_ON_PRIMARY, COLOR_SUCCESS, COLOR_ERROR;
 
     private final ExecutorService imageWorker = Executors.newSingleThreadExecutor();
+    private final ExecutorService historyWorker = Executors.newSingleThreadExecutor();
     private ActivityResultLauncher<String> imagePicker;
     private LinearLayout pageContent;
     private LinearLayout uploadCard;
@@ -73,14 +72,21 @@ public class MainActivity extends AppCompatActivity {
     private String selectedImageName;
     private String selectedImageMime;
     private boolean processing;
+    private boolean viewingHistory;
     private long imageLoadGeneration;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        ThemeManager.applySavedMode(this);
         super.onCreate(savedInstanceState);
+        loadThemeColors();
         WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
         getWindow().setStatusBarColor(COLOR_BACKGROUND);
         getWindow().setNavigationBarColor(COLOR_BACKGROUND);
+        WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView())
+                .setAppearanceLightStatusBars(!isDarkTheme());
+        WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView())
+                .setAppearanceLightNavigationBars(!isDarkTheme());
         setContentView(R.layout.activity_main);
 
         View root = findViewById(R.id.app_root);
@@ -95,6 +101,22 @@ public class MainActivity extends AppCompatActivity {
                 this::loadSelectedImage
         );
         buildScreen();
+        String historyId = getIntent().getStringExtra(EXTRA_HISTORY_ID);
+        if (historyId != null) restoreHistoryEntry(historyId);
+    }
+
+    private void loadThemeColors() {
+        COLOR_BACKGROUND = getColor(R.color.app_background); COLOR_SURFACE = getColor(R.color.surface);
+        COLOR_TEXT = getColor(R.color.text_primary); COLOR_MUTED = getColor(R.color.text_secondary);
+        COLOR_PURPLE = getColor(R.color.colorPrimary); COLOR_BORDER = getColor(R.color.border);
+        COLOR_SURFACE_VARIANT = getColor(R.color.surface_variant); COLOR_ACCENT_SURFACE = getColor(R.color.accent_surface);
+        COLOR_PRIMARY = getColor(R.color.colorPrimary); COLOR_ON_PRIMARY = getColor(R.color.on_primary);
+        COLOR_SUCCESS = getColor(R.color.success); COLOR_ERROR = getColor(R.color.error);
+    }
+
+    private boolean isDarkTheme() {
+        return (getResources().getConfiguration().uiMode & android.content.res.Configuration.UI_MODE_NIGHT_MASK)
+                == android.content.res.Configuration.UI_MODE_NIGHT_YES;
     }
 
     private void buildScreen() {
@@ -103,6 +125,15 @@ public class MainActivity extends AppCompatActivity {
         header.addView(makeBrandName(), new LinearLayout.LayoutParams(
                 0, ViewGroup.LayoutParams.WRAP_CONTENT, 1
         ));
+        Button appearanceButton = secondaryButton(ThemeManager.buttonLabel(this));
+        appearanceButton.setContentDescription("Change application appearance");
+        appearanceButton.setOnClickListener(view -> ThemeManager.showPicker(this));
+        header.addView(appearanceButton);
+        Button historyButton = secondaryButton("History");
+        historyButton.setOnClickListener(view -> startActivity(new Intent(this, HistoryActivity.class)));
+        LinearLayout.LayoutParams historyParams = new LinearLayout.LayoutParams(-2, -2);
+        historyParams.leftMargin = dp(6);
+        header.addView(historyButton, historyParams);
 
         appScrollView = findViewById(R.id.app_scroll);
         pageContent = new LinearLayout(this);
@@ -117,7 +148,7 @@ public class MainActivity extends AppCompatActivity {
         TextView badge = text(getString(R.string.hero_badge), 11, COLOR_PURPLE, true);
         badge.setLetterSpacing(0.12f);
         badge.setPadding(dp(13), dp(9), dp(13), dp(9));
-        badge.setBackground(rounded(Color.rgb(22, 20, 49), COLOR_BORDER, 24));
+        badge.setBackground(rounded(COLOR_ACCENT_SURFACE, COLOR_BORDER, 6));
         pageContent.addView(badge, margin(0, 4, 0, 20));
 
         String headingText = getString(R.string.hero_title);
@@ -164,12 +195,12 @@ public class MainActivity extends AppCompatActivity {
         uploadCard = new LinearLayout(this);
         uploadCard.setOrientation(LinearLayout.VERTICAL);
         uploadCard.setPadding(dp(18), dp(18), dp(18), dp(18));
-        uploadCard.setBackground(rounded(COLOR_SURFACE, COLOR_BORDER, 22));
+        uploadCard.setBackground(rounded(COLOR_SURFACE, COLOR_BORDER, 8));
         pageContent.addView(uploadCard, margin(0, 4, 0, 26));
 
         FrameLayout previewFrame = new FrameLayout(this);
         previewFrame.setMinimumHeight(dp(170));
-        previewFrame.setBackground(rounded(Color.rgb(19, 22, 43), COLOR_BORDER, 16));
+        previewFrame.setBackground(rounded(COLOR_SURFACE_VARIANT, COLOR_BORDER, 6));
         imagePreview = new ImageView(this);
         imagePreview.setScaleType(ImageView.ScaleType.FIT_CENTER);
         imagePreview.setAdjustViewBounds(true);
@@ -284,7 +315,7 @@ public class MainActivity extends AppCompatActivity {
 
         TextView iconView = text(icon, 23, COLOR_PURPLE, true);
         iconView.setGravity(Gravity.CENTER);
-        iconView.setBackground(rounded(Color.rgb(32, 27, 63), COLOR_BORDER, 14));
+        iconView.setBackground(rounded(COLOR_ACCENT_SURFACE, COLOR_BORDER, 6));
         card.addView(iconView, new LinearLayout.LayoutParams(dp(48), dp(48)));
 
         LinearLayout textColumn = new LinearLayout(this);
@@ -314,7 +345,7 @@ public class MainActivity extends AppCompatActivity {
         LinearLayout row = horizontalCard();
         TextView numberView = text(number, 12, COLOR_PURPLE, true);
         numberView.setGravity(Gravity.CENTER);
-        numberView.setBackground(rounded(Color.rgb(32, 27, 63), COLOR_BORDER, 12));
+        numberView.setBackground(rounded(COLOR_ACCENT_SURFACE, COLOR_BORDER, 5));
         row.addView(numberView, new LinearLayout.LayoutParams(dp(42), dp(42)));
 
         LinearLayout textColumn = new LinearLayout(this);
@@ -336,7 +367,7 @@ public class MainActivity extends AppCompatActivity {
         LinearLayout card = new LinearLayout(this);
         card.setGravity(Gravity.CENTER_VERTICAL);
         card.setPadding(dp(14), dp(14), dp(14), dp(14));
-        card.setBackground(rounded(COLOR_SURFACE, COLOR_BORDER, 18));
+        card.setBackground(rounded(COLOR_SURFACE, COLOR_BORDER, 6));
         return card;
     }
 
@@ -344,6 +375,7 @@ public class MainActivity extends AppCompatActivity {
         if (uri == null) {
             return;
         }
+        viewingHistory = false;
 
         ContentResolver resolver = getContentResolver();
         String mimeType = resolver.getType(uri);
@@ -373,6 +405,7 @@ public class MainActivity extends AppCompatActivity {
         imageFileInfo.setText(selectedImageName + " · checking file size…");
         updateSubmitButton();
         imageStatus.setText(R.string.image_loading);
+        imagePlaceholder.setText(R.string.image_placeholder);
         imagePreview.setVisibility(View.GONE);
         imagePlaceholder.setVisibility(View.GONE);
         imageWorker.execute(() -> {
@@ -457,11 +490,13 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void resetImage() {
+        viewingHistory = false;
         imageLoadGeneration++;
         imagePreview.setImageDrawable(null);
         imagePreview.setVisibility(View.GONE);
         imagePlaceholder.setVisibility(View.VISIBLE);
         imageStatus.setText(R.string.image_upload_hint);
+        imagePlaceholder.setText(R.string.image_placeholder);
         selectedImageBytes = null;
         selectedImageUri = null;
         selectedImageName = null;
@@ -484,7 +519,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void updateSubmitButton() {
         if (submitButton == null) return;
-        boolean enabled = AnalysisFlow.canSubmit(mockModeToggle != null && mockModeToggle.isChecked(),
+        boolean enabled = !viewingHistory && AnalysisFlow.canSubmit(mockModeToggle != null && mockModeToggle.isChecked(),
                 selectedImageBytes != null && selectedImageBytes.length > 0, processing);
         submitButton.setEnabled(enabled);
         submitButton.setAlpha(enabled ? 1f : 0.55f);
@@ -521,20 +556,28 @@ public class MainActivity extends AppCompatActivity {
                     updateSubmitButton();
                     loadingIndicator.setVisibility(View.GONE);
                     if (!result.isSuccess()) {
+                        String error = "The server could not process this image (HTTP " + result.statusCode + ").";
                         imageStatus.setText("API request failed (HTTP " + result.statusCode + "). Please try again.");
-                        showErrorResult("The server could not process this image (HTTP " + result.statusCode + ").", false);
+                        saveHistory(payload, filename, result.body, HistoryStore.STATUS_FAILED, useMock,
+                                error, "Request failed (HTTP " + result.statusCode + ")", 0);
+                        showErrorResult(error, useMock);
                         return;
                     }
                     try {
                         ApiResponseParser parsed = ApiResponseParser.parse(result.body);
                         imageStatus.setText(useMock ? "MOCK/DEMO complete — sample data, no API request sent."
                                 : "Processing completed (HTTP " + result.statusCode + ").");
+                        saveHistory(payload, filename, result.body, HistoryStore.STATUS_SUCCESS, useMock,
+                                "", buildHistorySummary(parsed), parsed.labels.size());
                         showApiResult(parsed, useMock);
                     } catch (JSONException exception) {
+                        String error = useMock ? "MOCK/DEMO fixture does not match the current parser."
+                                : "The API returned an empty, failed, or unsupported response.";
                         imageStatus.setText(useMock ? "MOCK/DEMO sample response could not be parsed."
                                 : "The API response could not be read. Please try again.");
-                        showErrorResult(useMock ? "MOCK/DEMO fixture does not match the current parser."
-                                : "The API returned an empty, failed, or unsupported response.", useMock);
+                        saveHistory(payload, filename, result.body, HistoryStore.STATUS_FAILED, useMock,
+                                error, "Response could not be parsed", 0);
+                        showErrorResult(error, useMock);
                     }
                 });
             } catch (Exception exception) {
@@ -543,13 +586,82 @@ public class MainActivity extends AppCompatActivity {
                     processing = false;
                     updateSubmitButton();
                     loadingIndicator.setVisibility(View.GONE);
+                    String error = useMock ? MockApiResponses.errorMessage()
+                            : "Request failed: " + safeErrorMessage(exception);
                     imageStatus.setText(useMock ? "MOCK/DEMO simulated request error. No API request was sent."
                             : "Could not process image. Check your connection and try again.");
-                    showErrorResult(useMock ? MockApiResponses.errorMessage()
-                            : "Request failed: " + safeErrorMessage(exception), useMock);
+                    saveHistory(payload, filename, "", HistoryStore.STATUS_FAILED, useMock,
+                            error, useMock ? "Simulated demo failure" : "Network or request failure", 0);
+                    showErrorResult(error, useMock);
                 });
             }
         });
+    }
+
+    private String buildHistorySummary(ApiResponseParser parsed) {
+        if (!parsed.labels.isEmpty()) {
+            String summary = parsed.labels.get(0).name;
+            if (parsed.labels.size() > 1) summary += " and " + (parsed.labels.size() - 1) + " more label(s)";
+            return summary;
+        }
+        if (!parsed.textLines.isEmpty()) return "Text: " + parsed.textLines.get(0);
+        return "No labels or text detected";
+    }
+
+    private void saveHistory(byte[] imageBytes, String imageName, String responseJson,
+                             String status, boolean isMock, String error, String summary, int labelCount) {
+        final byte[] imageCopy = imageBytes;
+        historyWorker.execute(() -> {
+            try {
+                HistoryStore.save(getApplicationContext(), imageCopy, imageName, responseJson,
+                        status, isMock, error, summary, labelCount);
+            } catch (IOException ignored) {
+                // The analysis result remains visible even if local history storage fails.
+            }
+        });
+    }
+
+    private void restoreHistoryEntry(String historyId) {
+        HistoryStore.Entry entry = HistoryStore.get(this, historyId);
+        if (entry == null) {
+            imageStatus.setText("This saved history item is no longer available.");
+            return;
+        }
+        viewingHistory = true;
+        selectedImageBytes = null;
+        selectedImageUri = null;
+        selectedImageName = entry.imageName;
+        selectedImageMime = null;
+        processing = false;
+        mockModeToggle.setChecked(entry.mock);
+        imageFileInfo.setText(entry.imageName);
+        imageStatus.setText("Viewing saved result · " + new java.text.SimpleDateFormat(
+                "MMM d, yyyy HH:mm", java.util.Locale.getDefault()).format(new java.util.Date(entry.timestamp)));
+        android.graphics.Bitmap thumbnail = HistoryStore.loadThumbnail(entry);
+        if (thumbnail != null) {
+            imagePreview.setImageBitmap(thumbnail);
+            imagePreview.setVisibility(View.VISIBLE);
+            imagePlaceholder.setVisibility(View.GONE);
+            detectionOverlay.setImageSize(thumbnail.getWidth(), thumbnail.getHeight());
+        } else {
+            imagePreview.setImageDrawable(null);
+            imagePreview.setVisibility(View.GONE);
+            imagePlaceholder.setVisibility(View.VISIBLE);
+            imagePlaceholder.setText("Original image thumbnail is unavailable. The saved result is still accessible.");
+        }
+        updateSubmitButton();
+        retryButton.setVisibility(View.GONE);
+        if (HistoryStore.STATUS_SUCCESS.equals(entry.status)) {
+            try {
+                ApiResponseParser parsed = ApiResponseParser.parse(entry.responseJson);
+                showApiResult(parsed, entry.mock);
+            } catch (JSONException exception) {
+                showErrorResult("The saved response is incomplete or corrupted. " + entry.summary, entry.mock);
+            }
+        } else {
+            showErrorResult(entry.errorMessage.isEmpty() ? "This analysis did not complete successfully." : entry.errorMessage,
+                    entry.mock);
+        }
     }
 
     private void showApiResult(ApiResponseParser parsed, boolean isMock) {
@@ -588,14 +700,16 @@ public class MainActivity extends AppCompatActivity {
     }
     private void appendMetadata(StringBuilder value, String item) { if (value.length() > 0) value.append('\n'); value.append(item); }
     private void addResultHeading(String value) {
-        TextView heading = text(value, 16, COLOR_PURPLE, true);
+        boolean errorHeading = value.toLowerCase(java.util.Locale.ROOT).contains("could not")
+                || value.toLowerCase(java.util.Locale.ROOT).contains("error");
+        TextView heading = text(value, 16, errorHeading ? COLOR_ERROR : COLOR_PURPLE, true);
         resultContainer.addView(heading, margin(0, 8, 0, 8));
     }
     private void addResultText(String value) {
         TextView body = text(value, 14, COLOR_TEXT, false);
         body.setLineSpacing(dp(4), 1f);
         body.setPadding(dp(12), dp(11), dp(12), dp(11));
-        body.setBackground(rounded(Color.rgb(10, 14, 30), COLOR_BORDER, 12));
+        body.setBackground(rounded(COLOR_SURFACE_VARIANT, COLOR_BORDER, 5));
         resultContainer.addView(body, margin(0, 0, 0, 8));
     }
     private void showErrorResult(String message, boolean isMock) {
@@ -603,7 +717,7 @@ public class MainActivity extends AppCompatActivity {
         addResultHeading(isMock ? "MOCK / DEMO — SIMULATED ERROR" : "Could not display results");
         addResultText(message);
         resultContainer.setVisibility(View.VISIBLE);
-        retryButton.setVisibility(AnalysisFlow.canSubmit(isMock,
+        retryButton.setVisibility(!viewingHistory && AnalysisFlow.canSubmit(isMock,
                 selectedImageBytes != null && selectedImageBytes.length > 0, processing)
                 ? View.VISIBLE : View.GONE);
         detectionOverlay.setVisibility(View.GONE);
@@ -623,7 +737,7 @@ public class MainActivity extends AppCompatActivity {
     private View makeBrandIcon() {
         TextView icon = text("◈", 24, COLOR_PURPLE, true);
         icon.setGravity(Gravity.CENTER);
-        icon.setBackground(rounded(Color.rgb(25, 21, 52), COLOR_BORDER, 12));
+        icon.setBackground(rounded(COLOR_ACCENT_SURFACE, COLOR_BORDER, 5));
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(dp(38), dp(38));
         params.rightMargin = dp(10);
         icon.setLayoutParams(params);
@@ -637,14 +751,14 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private Button primaryButton(String label) {
-        Button button = button(label, Color.WHITE, Color.rgb(112, 91, 226));
-        button.setBackground(rounded(Color.rgb(112, 91, 226), Color.TRANSPARENT, 14));
+        Button button = button(label, COLOR_ON_PRIMARY, COLOR_PRIMARY);
+        button.setBackground(rounded(COLOR_PRIMARY, Color.TRANSPARENT, 6));
         return button;
     }
 
     private Button secondaryButton(String label) {
         Button button = button(label, COLOR_TEXT, COLOR_SURFACE);
-        button.setBackground(rounded(COLOR_SURFACE, COLOR_BORDER, 13));
+        button.setBackground(rounded(COLOR_SURFACE, COLOR_BORDER, 6));
         return button;
     }
 
@@ -657,7 +771,7 @@ public class MainActivity extends AppCompatActivity {
         button.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
         button.setMinHeight(dp(48));
         button.setPadding(dp(12), 0, dp(12), 0);
-        button.setBackground(rounded(backgroundColor, COLOR_BORDER, 13));
+        button.setBackground(rounded(backgroundColor, COLOR_BORDER, 6));
         return button;
     }
 
@@ -678,7 +792,7 @@ public class MainActivity extends AppCompatActivity {
         TextView item = text(value, 14, COLOR_TEXT, false);
         item.setGravity(Gravity.CENTER_VERTICAL);
         item.setPadding(dp(12), dp(10), dp(12), dp(10));
-        item.setBackgroundColor(dropdown ? COLOR_SURFACE : Color.rgb(24, 29, 51));
+        item.setBackgroundColor(dropdown ? COLOR_SURFACE : COLOR_SURFACE_VARIANT);
         return item;
     }
 
@@ -709,6 +823,7 @@ public class MainActivity extends AppCompatActivity {
     protected void onDestroy() {
         imageLoadGeneration++;
         imageWorker.shutdownNow();
+        historyWorker.shutdown();
         super.onDestroy();
     }
 

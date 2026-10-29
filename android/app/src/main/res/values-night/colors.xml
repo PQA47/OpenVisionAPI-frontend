@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="app_background">#12151C</color>
+    <color name="surface">#1B2029</color>
+    <color name="text_primary">#F1F3F8</color>
+    <color name="text_secondary">#A9B1C0</color>
+    <color name="colorPrimary">#9BAAFF</color>
+    <color name="colorPrimaryDark">#12151C</color>
+    <color name="colorAccent">#9BAAFF</color>
+    <color name="border">#343B49</color>
+    <color name="surface_variant">#242B37</color>
+    <color name="accent_surface">#292F4A</color>
+    <color name="on_primary">#11182F</color>
+    <color name="success">#69D6A1</color>
+    <color name="error">#FF9A92</color>
+</resources>
