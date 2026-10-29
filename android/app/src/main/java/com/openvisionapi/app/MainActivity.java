@@ -121,19 +121,18 @@ public class MainActivity extends AppCompatActivity {
 
     private void buildScreen() {
         LinearLayout header = findViewById(R.id.app_header);
-        header.addView(makeBrandIcon());
-        header.addView(makeBrandName(), new LinearLayout.LayoutParams(
+        LinearLayout brandGroup = new LinearLayout(this);
+        brandGroup.setGravity(Gravity.CENTER_VERTICAL);
+        brandGroup.addView(makeBrandIcon());
+        brandGroup.addView(makeBrandName());
+        brandGroup.setClickable(true);
+        brandGroup.setFocusable(true);
+        brandGroup.setContentDescription("Open Home");
+        brandGroup.setOnClickListener(view -> AppNavigation.openHome(this));
+        header.addView(brandGroup, new LinearLayout.LayoutParams(
                 0, ViewGroup.LayoutParams.WRAP_CONTENT, 1
         ));
-        Button appearanceButton = secondaryButton(ThemeManager.buttonLabel(this));
-        appearanceButton.setContentDescription("Change application appearance");
-        appearanceButton.setOnClickListener(view -> ThemeManager.showPicker(this));
-        header.addView(appearanceButton);
-        Button historyButton = secondaryButton("History");
-        historyButton.setOnClickListener(view -> startActivity(new Intent(this, HistoryActivity.class)));
-        LinearLayout.LayoutParams historyParams = new LinearLayout.LayoutParams(-2, -2);
-        historyParams.leftMargin = dp(6);
-        header.addView(historyButton, historyParams);
+        header.addView(AppNavigation.createMenuButton(this));
 
         appScrollView = findViewById(R.id.app_scroll);
         pageContent = new LinearLayout(this);

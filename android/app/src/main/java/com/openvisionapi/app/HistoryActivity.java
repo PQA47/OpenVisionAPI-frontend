@@ -60,13 +60,10 @@ public class HistoryActivity extends AppCompatActivity {
         LinearLayout.LayoutParams tp = new LinearLayout.LayoutParams(0, -2, 1);
         tp.leftMargin = dp(14);
         header.addView(title, tp);
-        Button appearance = button(ThemeManager.buttonLabel(this), false);
-        appearance.setContentDescription("Change application appearance");
-        appearance.setOnClickListener(v -> ThemeManager.showPicker(this));
-        header.addView(appearance);
         Button clear = button("Clear all", false);
         clear.setOnClickListener(v -> confirmClear());
         header.addView(clear);
+        header.addView(AppNavigation.createMenuButton(this));
         root.addView(header);
 
         ScrollView scroll = new ScrollView(this);
